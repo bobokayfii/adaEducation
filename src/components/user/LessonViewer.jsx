@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight, CheckCircle, Play, Award } from 'lucide-react';
 import { lessonContent } from '../../data/lessonContent';
-import { lessonVideos, getVideoEmbedUrl } from '../../data/lessonVideos';
+import { getLessonVideoData, getVideoEmbedUrl } from '../../data/lessonVideos';
 
 function LessonViewer({
   modulesData,
@@ -16,6 +16,8 @@ function LessonViewer({
   const module = modulesData.find((m) => m.id === moduleId);
   const currentLesson = module.lessons[lessonIndex];
   const isLastLesson = lessonIndex === module.lessons.length - 1;
+  const videoMeta = getLessonVideoData(currentLesson);
+  const videoEmbedUrl = getVideoEmbedUrl(currentLesson);
 
   // Загружаем контент из localStorage или используем дефолтный
   const localContent = (() => {
@@ -88,24 +90,28 @@ function LessonViewer({
               </div>
 
               {/* Видео-плеер */}
-              {getVideoEmbedUrl(currentLesson) ? (
+              {videoEmbedUrl ? (
                 <div className="mb-4 sm:mb-6 lg:mb-8">
                   <div className="relative rounded-lg overflow-hidden shadow-default border border-gray-200" style={{ paddingBottom: '56.25%', height: 0 }}>
                     <iframe
                       className="absolute top-0 left-0 w-full h-full"
-                      src={getVideoEmbedUrl(currentLesson)}
-                      title={lessonVideos[currentLesson]?.title || currentLesson}
+                      src={videoEmbedUrl}
+                      title={videoMeta?.title || currentLesson}
                       frameBorder="0"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                       allowFullScreen
                     ></iframe>
                   </div>
-                  {lessonVideos[currentLesson] && (
+                  {videoMeta && (
                     <div className="mt-2 sm:mt-3 text-xs sm:text-sm text-gray-600">
-                      <p className="font-medium text-gray-900">{lessonVideos[currentLesson].title}</p>
-                      <p className="text-gray-500">
-                        {lessonVideos[currentLesson].channel} • {lessonVideos[currentLesson].duration}
-                      </p>
+                      <p className="font-medium text-gray-900">{videoMeta.title}</p>
+                      {(videoMeta.channel || videoMeta.duration) && (
+                        <p className="text-gray-500">
+                          {videoMeta.channel}
+                          {videoMeta.channel && videoMeta.duration ? ' • ' : ''}
+                          {videoMeta.duration}
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>

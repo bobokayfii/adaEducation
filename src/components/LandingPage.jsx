@@ -1,9 +1,9 @@
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, PlayCircle, Layout, Infinity, Video, Trophy, Phone, Rocket, GraduationCap, ArrowRight, Users, Clock, Award } from 'lucide-react';
+import { BookOpen, PlayCircle, Video, Trophy, Phone, Rocket, GraduationCap, ArrowRight, BarChart3, Brain, Cpu, FileSpreadsheet, Image, FileText } from 'lucide-react';
 import { modulesData } from '../data/mockData';
 
-function LandingPage() {
-  const navigate = useNavigate();
+function LandingPage({ onStart }) {
+  const navigate = onStart ? null : useNavigate();
 
   // Получаем приветствие в зависимости от времени суток
   const getGreeting = () => {
@@ -14,11 +14,83 @@ function LandingPage() {
     return 'Добрый вечер';
   };
 
-  // Получаем популярные курсы (первые 3)
-  const popularCourses = modulesData.slice(0, 3);
+  const totalModules = modulesData.length;
+  const totalLessons = modulesData.reduce((sum, module) => sum + module.lessons.length, 0);
+  const averageLessonsPerModule = totalModules > 0 ? Math.round(totalLessons / totalModules) : 0;
+
+  const platformMetrics = [
+    {
+      id: 'catalog',
+      value: totalModules,
+      label: 'Курсов в каталоге',
+      description: 'AI, аналитика данных и офисные инструменты',
+      icon: BookOpen,
+      iconBg: 'bg-blue-100 text-blue-600',
+    },
+    {
+      id: 'lessons',
+      value: totalLessons,
+      label: 'Видео-уроков',
+      description: `В среднем ${averageLessonsPerModule} уроков в каждом модуле`,
+      icon: PlayCircle,
+      iconBg: 'bg-green-100 text-green-600',
+    },
+    {
+      id: 'tests',
+      value: totalModules,
+      label: 'Финальных тестов',
+      description: 'Контроль знаний после каждого модуля',
+      icon: Trophy,
+      iconBg: 'bg-amber-100 text-amber-600',
+    },
+    {
+      id: 'analytics',
+      value: '100%',
+      label: 'Живая статистика',
+      description: 'Мониторинг прогресса и достижений как в пользовательском дашборде',
+      icon: BarChart3,
+      iconBg: 'bg-purple-100 text-purple-600',
+    },
+  ];
+
+  const iconMap = {
+    brain: Brain,
+    cpu: Cpu,
+    'file-spreadsheet': FileSpreadsheet,
+    image: Image,
+    'file-text': FileText,
+  };
+
+  const highlightedCoursesData = [
+    {
+      moduleId: 1,
+      image: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=1200&q=80',
+    },
+    {
+      moduleId: 2,
+      image: 'https://images.unsplash.com/photo-1517430816045-df4b7de11d1d?auto=format&fit=crop&w=1200&q=80',
+    },
+    {
+      moduleId: 3,
+      image: 'https://images.unsplash.com/photo-1521791055366-0d553872125f?auto=format&fit=crop&w=1200&q=80',
+    },
+  ];
+
+  const popularCourses = highlightedCoursesData
+    .map(({ moduleId, image }) => {
+      const module = modulesData.find((m) => m.id === moduleId);
+      if (!module) return null;
+      return { ...module, image };
+    })
+    .filter(Boolean)
+    .slice(0, 3);
 
   const handleStartLearning = () => {
-    navigate('/login');
+    if (onStart) {
+      onStart();
+    } else if (navigate) {
+      navigate('/login');
+    }
   };
 
   return (
@@ -53,7 +125,7 @@ function LandingPage() {
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-6 fade-in">
               {getGreeting()}!
             </h1>
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-semibold mb-4 text-white/95">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-semibold mb-4 text-white/95 welcome-text">
               Добро пожаловать в AdaEducation
             </h2>
             <p className="text-lg sm:text-xl text-white/90 mb-8 max-w-2xl mx-auto fade-in">
@@ -89,73 +161,88 @@ function LandingPage() {
           </p>
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="bg-white rounded-xl shadow-default p-6 text-center hover:shadow-hover transition-all">
-            <BookOpen className="w-12 h-12 text-primary mx-auto mb-4" />
-            <h3 className="text-3xl font-bold text-gray-900 mb-2">{modulesData.length}</h3>
-            <p className="text-gray-600">Курсов в каталоге</p>
-          </div>
-          <div className="bg-white rounded-xl shadow-default p-6 text-center hover:shadow-hover transition-all">
-            <PlayCircle className="w-12 h-12 text-secondary mx-auto mb-4" />
-            <h3 className="text-3xl font-bold text-gray-900 mb-2">
-              {modulesData.reduce((sum, module) => sum + module.lessons.length, 0)}
-            </h3>
-            <p className="text-gray-600">Видеоуроков</p>
-          </div>
-          <div className="bg-white rounded-xl shadow-default p-6 text-center hover:shadow-hover transition-all">
-            <Layout className="w-12 h-12 text-accent mx-auto mb-4" />
-            <h3 className="text-3xl font-bold text-gray-900 mb-2">3</h3>
-            <p className="text-gray-600">Направления обучения</p>
-          </div>
-          <div className="bg-white rounded-xl shadow-default p-6 text-center hover:shadow-hover transition-all">
-            <Infinity className="w-12 h-12 text-primary mx-auto mb-4" />
-            <h3 className="text-3xl font-bold text-gray-900 mb-2">∞</h3>
-            <p className="text-gray-600">Сотрудников можно обучить</p>
-          </div>
+          {platformMetrics.map((metric) => {
+            const IconComponent = metric.icon;
+            return (
+              <div
+                key={metric.id}
+                className="bg-white rounded-2xl shadow-default p-6 hover:shadow-hover transition-all border border-gray-100"
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div className={`p-3 rounded-xl inline-flex ${metric.iconBg}`}>
+                    <IconComponent className="w-6 h-6" />
+                  </div>
+                  <span className="text-3xl font-bold text-gray-900">{metric.value}</span>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">{metric.label}</h3>
+                <p className="text-sm text-gray-600">{metric.description}</p>
+              </div>
+            );
+          })}
         </div>
       </section>
 
       {/* Popular Courses Section */}
       <section className="container mx-auto px-4 sm:px-6 py-16" id="courses">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl sm:text-4xl font-bold mb-4 gradient-text">Популярные курсы</h2>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto mb-8">
-            Выберите курс и начните свой путь к профессиональному росту
-          </p>
+        <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between mb-12">
+          <div className="max-w-2xl">
+            <h2 className="text-3xl sm:text-4xl font-bold mb-4 gradient-text">Популярные курсы</h2>
+            <p className="text-lg text-gray-600">
+              Выберите курс из актуального каталога и начните путь к профессиональному росту
+            </p>
+          </div>
           <button
             onClick={handleStartLearning}
-            className="inline-flex items-center gap-2 text-primary hover:text-primary/80 font-semibold transition-colors"
+            className="inline-flex items-center gap-2 self-start sm:self-auto text-primary hover:text-primary/80 font-semibold transition-colors"
           >
             Все курсы
             <ArrowRight className="w-4 h-4" />
           </button>
         </div>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
           {popularCourses.map((course) => {
-            const getIconComponent = () => {
-              const iconMap = {
-                brain: '🧠',
-                cpu: '💻',
-                'file-spreadsheet': '📊',
-                image: '🖼️',
-                'file-text': '📄',
-              };
-              return iconMap[course.icon] || '📚';
-            };
-
+            const IconComponent = iconMap[course.icon] || BookOpen;
+            const lessonsCount = course.lessons.length;
             return (
               <div
                 key={course.id}
-                className="bg-white rounded-xl shadow-default overflow-hidden hover:shadow-hover transition-all cursor-pointer border border-gray-200 transform hover:-translate-y-1 group"
-                onClick={handleStartLearning}
+                className="bg-white rounded-2xl shadow-default border border-gray-200 overflow-hidden hover:shadow-hover transition-all group"
               >
-                <div className="p-6">
-                  <div className="text-5xl mb-4 transform group-hover:scale-110 transition-transform">{getIconComponent()}</div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-primary transition-colors">{course.title}</h3>
-                  <p className="text-gray-600 mb-4">{course.lessons.length} уроков</p>
-                  <div className="flex items-center gap-2 text-primary font-semibold group-hover:gap-3 transition-all">
-                    <span>Начать курс</span>
-                    <ArrowRight className="w-4 h-4" />
+                <div className="relative h-44 w-full overflow-hidden">
+                  <img
+                    src={course.image}
+                    alt={course.title}
+                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+                  <div className="absolute bottom-4 left-4 right-4 flex items-center gap-2">
+                    <div className="bg-white/90 backdrop-blur-sm p-3 rounded-xl text-primary shadow">
+                      <IconComponent className="w-6 h-6" />
+                    </div>
+                    <div className="text-white">
+                      <h3 className="text-lg font-semibold">{course.title}</h3>
+                      <div className="flex items-center gap-2 text-sm text-white/90">
+                        <BookOpen className="w-4 h-4" />
+                        <span>{lessonsCount} уроков</span>
+                      </div>
+                    </div>
                   </div>
+                </div>
+                <div className="p-6 space-y-4">
+                  <div className="flex items-center justify-between text-sm text-gray-600">
+                    <span>Прогресс</span>
+                    <span>0/{lessonsCount}</span>
+                  </div>
+                  <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
+                    <div className="h-full w-0 bg-gradient-primary rounded-full" />
+                  </div>
+                  <button
+                    onClick={handleStartLearning}
+                    className="w-full inline-flex items-center justify-center gap-2 text-sm font-semibold text-white bg-gradient-primary py-3 rounded-lg hover:shadow-hover transition-all active:scale-[0.99]"
+                  >
+                    Начать
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
             );
@@ -172,50 +259,27 @@ function LandingPage() {
               Мы создали платформу, которая делает обучение простым, интересным и эффективным
             </p>
           </div>
-          </div>
-        <div className="grid md:grid-cols-3 gap-6">
-          <div className="bg-white rounded-xl shadow-default p-6 text-center hover:shadow-hover transition-all">
-            <Video className="w-12 h-12 text-primary mx-auto mb-4" />
-            <h4 className="text-xl font-bold mb-2">Видео уроки</h4>
-            <p className="text-gray-600">
-              Качественные видео от лучших экспертов отрасли
-            </p>
-          </div>
-          <div className="bg-white rounded-xl shadow-default p-6 text-center hover:shadow-hover transition-all">
-            <Trophy className="w-12 h-12 text-accent mx-auto mb-4" />
-            <h4 className="text-xl font-bold mb-2">Геймификация</h4>
-            <p className="text-gray-600">
-              Зарабатывайте XP, получайте уровни и достижения
-            </p>
-          </div>
-          <div className="bg-white rounded-xl shadow-default p-6 text-center hover:shadow-hover transition-all">
-            <Phone className="w-12 h-12 text-secondary mx-auto mb-4" />
-            <h4 className="text-xl font-bold mb-2">Адаптивность</h4>
-            <p className="text-gray-600">
-              Учитесь где угодно: на компьютере, планшете или телефоне
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Stats Section */}
-      <section className="bg-gray-100 py-16">
-        <div className="container mx-auto px-4 sm:px-6">
-          <div className="grid sm:grid-cols-3 gap-8 text-center">
-            <div>
-              <Users className="w-12 h-12 text-primary mx-auto mb-4" />
-              <h3 className="text-3xl font-bold text-gray-900 mb-2">1000+</h3>
-              <p className="text-gray-600">Активных студентов</p>
+          <div className="grid md:grid-cols-3 gap-6">
+            <div className="bg-white rounded-xl shadow-default p-6 text-center hover:shadow-hover transition-all">
+              <Video className="w-12 h-12 text-primary mx-auto mb-4" />
+              <h4 className="text-xl font-bold mb-2">Видео уроки</h4>
+              <p className="text-gray-600">
+                Качественные видео от лучших экспертов отрасли
+              </p>
             </div>
-            <div>
-              <Clock className="w-12 h-12 text-secondary mx-auto mb-4" />
-              <h3 className="text-3xl font-bold text-gray-900 mb-2">24/7</h3>
-              <p className="text-gray-600">Доступ к материалам</p>
+            <div className="bg-white rounded-xl shadow-default p-6 text-center hover:shadow-hover transition-all">
+              <Trophy className="w-12 h-12 text-accent mx-auto mb-4" />
+              <h4 className="text-xl font-bold mb-2">Геймификация</h4>
+              <p className="text-gray-600">
+                Зарабатывайте XP, получайте уровни и достижения
+              </p>
             </div>
-            <div>
-              <Award className="w-12 h-12 text-accent mx-auto mb-4" />
-              <h3 className="text-3xl font-bold text-gray-900 mb-2">95%</h3>
-              <p className="text-gray-600">Успешных выпускников</p>
+            <div className="bg-white rounded-xl shadow-default p-6 text-center hover:shadow-hover transition-all">
+              <Phone className="w-12 h-12 text-secondary mx-auto mb-4" />
+              <h4 className="text-xl font-bold mb-2">Адаптивность</h4>
+              <p className="text-gray-600">
+                Учитесь где угодно: на компьютере, планшете или телефоне
+              </p>
             </div>
           </div>
         </div>
@@ -253,7 +317,7 @@ function LandingPage() {
             </div>
             <div>
               <h6 className="font-semibold mb-4">Навигация</h6>
-              <ul className="space-y-2 text-gray-400">
+              <ul className="space-y-2 text-gray-400 list-none">
                 <li><a href="#features" className="hover:text-white transition-colors">Возможности</a></li>
                 <li><a href="#courses" className="hover:text-white transition-colors">Курсы</a></li>
                 <li><a href="#about" className="hover:text-white transition-colors">О нас</a></li>
@@ -266,7 +330,7 @@ function LandingPage() {
             </div>
             <div>
               <h6 className="font-semibold mb-4">Контакты</h6>
-              <ul className="space-y-2 text-gray-400">
+              <ul className="space-y-2 text-gray-400 list-none">
                 <li>info@adaeducation.com</li>
                 <li>www.adaeducation.com</li>
               </ul>

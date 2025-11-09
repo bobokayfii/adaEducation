@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Brain, ArrowLeft } from 'lucide-react';
 
-function Login({ onLogin }) {
-  const navigate = useNavigate();
+function Login({ onLogin, onBack }) {
+  const navigate = onBack ? null : useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -24,7 +24,11 @@ function Login({ onLogin }) {
   };
 
   const handleBack = () => {
-    navigate('/');
+    if (onBack) {
+      onBack();
+    } else if (navigate) {
+      navigate('/');
+    }
   };
 
   return (

@@ -79,14 +79,21 @@ function UserDashboard({ userName, userEmail, onLogout, users, setUsers }) {
       const existingUserIndex = prevUsers.findIndex(u => u.email.toLowerCase() === userEmail.toLowerCase());
 
       if (existingUserIndex !== -1) {
+        const existingUser = prevUsers[existingUserIndex];
+
+        // Если данные не изменились - избегаем лишнего обновления, чтобы не попасть в цикл перерендеров
+        if (JSON.stringify(existingUser) === JSON.stringify(currentUser)) {
+          return prevUsers;
+        }
+
         // Обновляем существующего пользователя
         const updatedUsers = [...prevUsers];
         updatedUsers[existingUserIndex] = currentUser;
         return updatedUsers;
-      } else {
-        // Добавляем нового пользователя (если его нет в списке)
-        return [...prevUsers, currentUser];
       }
+
+      // Добавляем нового пользователя (если его нет в списке)
+      return [...prevUsers, currentUser];
     });
   }, [currentUser, userName, userEmail, setUsers]);
 

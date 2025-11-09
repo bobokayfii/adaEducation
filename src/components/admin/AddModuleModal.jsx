@@ -1,26 +1,22 @@
 import { useState, useEffect } from 'react';
-import { X, BookOpen, Plus, Save } from 'lucide-react';
+import { X, BookOpen, Save } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 
 function AddModuleModal({ onClose, onAddModule }) {
   const [formData, setFormData] = useState({
     title: '',
-    icon: 'brain',
-    lessons: ['']
+    icon: 'brain'
   });
-
   const [errors, setErrors] = useState({});
 
-  // Available icons
   const availableIcons = [
-    { name: 'brain', label: 'Мозг', Component: LucideIcons.Brain },
-    { name: 'cpu', label: 'Процессор', Component: LucideIcons.Cpu },
-    { name: 'file-spreadsheet', label: 'Таблица', Component: LucideIcons.FileSpreadsheet },
-    { name: 'image', label: 'Изображение', Component: LucideIcons.Image },
-    { name: 'file-text', label: 'Документ', Component: LucideIcons.FileText }
+    { name: 'brain', label: 'AI & инновации', Component: LucideIcons.Brain },
+    { name: 'cpu', label: 'Технологии', Component: LucideIcons.Cpu },
+    { name: 'file-spreadsheet', label: 'Аналитика', Component: LucideIcons.FileSpreadsheet },
+    { name: 'image', label: 'Креатив', Component: LucideIcons.Image },
+    { name: 'file-text', label: 'Документы', Component: LucideIcons.FileText }
   ];
 
-  // Close modal on ESC key press
   useEffect(() => {
     const handleEscape = (e) => {
       if (e.key === 'Escape') {
@@ -39,62 +35,30 @@ function AddModuleModal({ onClose, onAddModule }) {
       newErrors.title = 'Название модуля обязательно';
     }
 
-    const validLessons = formData.lessons.filter(l => l.trim());
-    if (validLessons.length === 0) {
-      newErrors.lessons = 'Добавьте хотя бы один урок';
-    }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!validateForm()) return;
 
-    if (validateForm()) {
-      const validLessons = formData.lessons.filter(l => l.trim());
+    const newModule = {
+      id: Date.now(),
+      title: formData.title.trim(),
+      icon: formData.icon,
+      lessons: []
+    };
 
-      const newModule = {
-        id: Date.now(),
-        title: formData.title.trim(),
-        icon: formData.icon,
-        lessons: validLessons,
-        duration: validLessons.length * 45 // 45 minutes per lesson
-      };
-
-      onAddModule(newModule);
-      onClose();
-    }
+    onAddModule(newModule);
+    onClose();
   };
 
   const handleChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    // Clear error for this field when user starts typing
+    setFormData((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }));
+      setErrors((prev) => ({ ...prev, [field]: '' }));
     }
-  };
-
-  const handleAddLesson = () => {
-    setFormData(prev => ({
-      ...prev,
-      lessons: [...prev.lessons, '']
-    }));
-  };
-
-  const handleLessonChange = (index, value) => {
-    const newLessons = [...formData.lessons];
-    newLessons[index] = value;
-    setFormData(prev => ({ ...prev, lessons: newLessons }));
-
-    if (errors.lessons) {
-      setErrors(prev => ({ ...prev, lessons: '' }));
-    }
-  };
-
-  const handleRemoveLesson = (index) => {
-    const newLessons = formData.lessons.filter((_, i) => i !== index);
-    setFormData(prev => ({ ...prev, lessons: newLessons.length ? newLessons : [''] }));
   };
 
   return (
@@ -106,8 +70,7 @@ function AddModuleModal({ onClose, onAddModule }) {
         className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl flex flex-col max-h-[90vh]"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-6 flex-shrink-0 rounded-t-2xl">
+        <div className="bg-gradient-primary text-white p-6 flex-shrink-0 rounded-t-2xl">
           <div className="flex items-start justify-between mb-2">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-white/20">
@@ -119,6 +82,7 @@ function AddModuleModal({ onClose, onAddModule }) {
               </div>
             </div>
             <button
+              type="button"
               onClick={onClose}
               className="p-1.5 hover:bg-white/20 rounded-lg transition-colors flex-shrink-0"
             >
@@ -127,9 +91,7 @@ function AddModuleModal({ onClose, onAddModule }) {
           </div>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-5 overflow-y-auto flex-1">
-          {/* Module Title */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               Название модуля *
@@ -138,7 +100,7 @@ function AddModuleModal({ onClose, onAddModule }) {
               type="text"
               value={formData.title}
               onChange={(e) => handleChange('title', e.target.value)}
-              placeholder="Например: Машинное обучение"
+              placeholder="Например: Продвинутый анализ данных"
               className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none transition-colors ${
                 errors.title ? 'border-red-500' : 'border-gray-300'
               }`}
@@ -148,7 +110,6 @@ function AddModuleModal({ onClose, onAddModule }) {
             )}
           </div>
 
-          {/* Icon Selection */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               Иконка модуля *
@@ -167,54 +128,16 @@ function AddModuleModal({ onClose, onAddModule }) {
                         : 'border-gray-200 hover:border-indigo-300'
                     }`}
                   >
-                    <IconComponent className={`w-6 h-6 ${
-                      formData.icon === icon.name ? 'text-indigo-600' : 'text-gray-600'
-                    }`} />
+                    <IconComponent
+                      className={`w-6 h-6 ${
+                        formData.icon === icon.name ? 'text-indigo-600' : 'text-gray-600'
+                      }`}
+                    />
                     <span className="text-xs text-gray-600">{icon.label}</span>
                   </button>
                 );
               })}
             </div>
-          </div>
-
-          {/* Lessons */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Уроки *
-            </label>
-            <div className="space-y-2">
-              {formData.lessons.map((lesson, index) => (
-                <div key={index} className="flex gap-2">
-                  <input
-                    type="text"
-                    value={lesson}
-                    onChange={(e) => handleLessonChange(index, e.target.value)}
-                    placeholder={`Урок ${index + 1}`}
-                    className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                  />
-                  {formData.lessons.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveLesson(index)}
-                      className="p-2.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-            {errors.lessons && (
-              <p className="text-red-600 text-xs mt-1">{errors.lessons}</p>
-            )}
-            <button
-              type="button"
-              onClick={handleAddLesson}
-              className="mt-3 flex items-center gap-2 text-indigo-600 hover:text-indigo-700 font-medium text-sm"
-            >
-              <Plus className="w-4 h-4" />
-              Добавить урок
-            </button>
           </div>
 
           <div className="bg-indigo-50 rounded-lg p-4 border border-indigo-200">
@@ -224,7 +147,6 @@ function AddModuleModal({ onClose, onAddModule }) {
           </div>
         </form>
 
-        {/* Footer Buttons */}
         <div className="p-6 border-t border-gray-200 bg-gray-50 flex-shrink-0 rounded-b-2xl">
           <div className="flex gap-3">
             <button
@@ -235,8 +157,9 @@ function AddModuleModal({ onClose, onAddModule }) {
               Отмена
             </button>
             <button
+              type="submit"
               onClick={handleSubmit}
-              className="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium flex items-center justify-center gap-2"
+              className="flex-1 px-4 py-2.5 bg-gradient-primary text-white rounded-lg hover:opacity-90 transition-colors font-medium flex items-center justify-center gap-2"
             >
               <Save className="w-5 h-5" />
               Создать модуль

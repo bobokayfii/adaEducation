@@ -3,10 +3,10 @@ import { BookOpen, FileText, Eye, Edit, Upload, Download, Plus, Save, X, Chevron
 import * as LucideIcons from 'lucide-react';
 import { modulesData } from '../../data/mockData';
 import { lessonContent } from '../../data/lessonContent';
-import { lessonVideos, getVideoEmbedUrl } from '../../data/lessonVideos';
+import { getLessonVideoData, getVideoEmbedUrl } from '../../data/lessonVideos';
 import AddModuleModal from './AddModuleModal';
 
-function AdminContent({ users, setUsers }) {
+function AdminContent({ users, setUsers, setActiveView }) {
   const [selectedModule, setSelectedModule] = useState(null);
   const [selectedLesson, setSelectedLesson] = useState(null);
   const [editMode, setEditMode] = useState(false);
@@ -31,12 +31,31 @@ function AdminContent({ users, setUsers }) {
     return saved ? JSON.parse(saved) : {};
   });
 
+  const [lessonVideosState, setLessonVideosState] = useState(() => {
+    const saved = localStorage.getItem('adminLessonVideos');
+    return saved ? JSON.parse(saved) : {};
+  });
+
   const [showAddLesson, setShowAddLesson] = useState(false);
   const [newLessonName, setNewLessonName] = useState('');
   const [newLessonTitle, setNewLessonTitle] = useState('');
+  const [newLessonVideoUrl, setNewLessonVideoUrl] = useState('');
+  const [newLessonVideoTitle, setNewLessonVideoTitle] = useState('');
+  const [newLessonVideoChannel, setNewLessonVideoChannel] = useState('');
+  const [newLessonVideoDuration, setNewLessonVideoDuration] = useState('');
   const [saveMessage, setSaveMessage] = useState('');
   const [showAddModuleModal, setShowAddModuleModal] = useState(false);
   const [editModuleTest, setEditModuleTest] = useState(false);
+
+  const updateLessonVideosState = (updater) => {
+    setLessonVideosState(prev => {
+      const next = updater(prev);
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('adminLessonVideos', JSON.stringify(next));
+      }
+      return next;
+    });
+  };
 
   // Сохраняем изменения в localStorage
   useEffect(() => {
@@ -162,52 +181,107 @@ function AdminContent({ users, setUsers }) {
   };
 
   const handleAddLesson = () => {
-    if (!newLessonName.trim()) return;
+    const trimmedLessonName = newLessonName.trim();
+    if (!trimmedLessonName) {
+      setSaveMessage('Укажите название урока');
+      setTimeout(() => setSaveMessage(''), 2500);
+      return;
+    }
 
-    const module = moduleList.find(m => m.id === selectedModule);
+    const moduleId = Number(selectedModule);
+    const module = moduleList.find((m) => Number(m.id) === moduleId);
+
+    if (!module) {
+      setSaveMessage('Не удалось найти модуль. Обновите страницу и попробуйте снова.');
+      setTimeout(() => setSaveMessage(''), 3000);
+      return;
+    }
+
     const updatedModule = {
       ...module,
-      lessons: [...module.lessons, newLessonName]
+      lessons: [...module.lessons, trimmedLessonName],
     };
 
-    const updatedModules = moduleList.map(m =>
-      m.id === selectedModule ? updatedModule : m
-    );
+    setModuleList((prevModules) => {
+      const updatedModules = prevModules.map((m) =>
+        Number(m.id) === moduleId ? updatedModule : m
+      );
+      localStorage.setItem('adminModuleList', JSON.stringify(updatedModules));
+      return updatedModules;
+    });
 
-    setModuleList(updatedModules);
+    setUsers((prevUsers) =>
+      prevUsers.map((user) => {
+        const existingProgress = user.progress || {};
+        const moduleKey = String(moduleId);
+        const moduleProgress = existingProgress[moduleKey] || existingProgress[moduleId] || {
+          started: false,
+          viewed: 0,
+          completed: 0,
+          total: 0,
+        };
 
-    // Обновляем всех пользователей, увеличивая total для данного модуля
-    const updatedUsers = users.map(user => {
-      // Проверяем, есть ли у пользователя прогресс для этого модуля
-      if (user.progress && user.progress[selectedModule]) {
+        const updatedProgress = {
+          ...existingProgress,
+          [moduleKey]: {
+            ...moduleProgress,
+            total: updatedModule.lessons.length,
+          },
+          [moduleId]: {
+            ...moduleProgress,
+            total: updatedModule.lessons.length,
+          },
+        };
+
         return {
           ...user,
-          progress: {
-            ...user.progress,
-            [selectedModule]: {
-              ...user.progress[selectedModule],
-              total: updatedModule.lessons.length
-            }
-          }
+          progress: updatedProgress,
         };
-      }
-      return user;
-    });
+      })
+    );
 
-    setUsers(updatedUsers);
+    setLocalContent((prevContent) => ({
+      ...prevContent,
+      [trimmedLessonName]: {
+        title: newLessonTitle || trimmedLessonName,
+        content: 'Новый урок. Добавьте содержимое здесь.',
+      },
+    }));
 
-    // Добавляем контент для нового урока
-    setLocalContent({
-      ...localContent,
-      [newLessonName]: {
-        title: newLessonTitle || newLessonName,
-        content: 'Новый урок. Добавьте содержимое здесь.'
-      }
-    });
+    if (newLessonVideoUrl.trim()) {
+      const videoEntry = {
+        url: newLessonVideoUrl.trim(),
+        title:
+          newLessonVideoTitle.trim() ||
+          newLessonTitle.trim() ||
+          trimmedLessonName,
+        channel: newLessonVideoChannel.trim() || 'Видео урок',
+        duration: newLessonVideoDuration.trim(),
+      };
+
+      updateLessonVideosState((prev) => ({
+        ...prev,
+        [trimmedLessonName]: videoEntry,
+      }));
+    } else {
+      updateLessonVideosState((prev) => {
+        if (!prev[trimmedLessonName]) return prev;
+        const { [trimmedLessonName]: removed, ...rest } = prev;
+        return rest;
+      });
+    }
 
     setNewLessonName('');
     setNewLessonTitle('');
+    setNewLessonVideoUrl('');
+    setNewLessonVideoTitle('');
+    setNewLessonVideoChannel('');
+    setNewLessonVideoDuration('');
     setShowAddLesson(false);
+    setSelectedModule(String(moduleId));
+    setSelectedLesson(null);
+    setEditMode(false);
+    setPreviewMode(false);
     setSaveMessage('Урок успешно добавлен и обновлен у всех пользователей!');
     setTimeout(() => setSaveMessage(''), 3000);
   };
@@ -246,24 +320,50 @@ function AdminContent({ users, setUsers }) {
   };
 
   const handleAddModule = (newModule) => {
-    // Добавляем модуль в список
-    setModuleList([...moduleList, newModule]);
+    // Гарантируем, что остается активной вкладка "Контент"
+    setActiveView?.('adminContent');
+
+    // Добавляем модуль в список (в начало, чтобы его сразу было видно)
+    setModuleList(prev => {
+      const updated = [newModule, ...prev];
+      localStorage.setItem('adminModuleList', JSON.stringify(updated));
+      return updated;
+    });
 
     // Обновляем всех пользователей, добавляя новый модуль в их progress
-    const updatedUsers = users.map(user => ({
-      ...user,
-      progress: {
-        ...user.progress,
-        [newModule.id]: {
+    setUsers(prevUsers =>
+      prevUsers.map(user => {
+        const existingProgress = user.progress || {};
+        const moduleProgress = {
           started: false,
           viewed: 0,
           completed: 0,
           total: newModule.lessons.length
-        }
-      }
+        };
+        return {
+          ...user,
+          progress: {
+            ...existingProgress,
+            [String(newModule.id)]: moduleProgress,
+            [newModule.id]: moduleProgress
+          }
+        };
+      })
+    );
+
+    // Создаем пустой тест для нового модуля (во избежание undefined)
+    setModuleTests(prev => ({
+      ...prev,
+      [newModule.id]: prev[newModule.id] || []
     }));
 
-    setUsers(updatedUsers);
+    // Сбрасываем вспомогательные состояния
+    setShowAddLesson(false);
+    setShowAddModuleModal(false);
+    setSelectedModule(String(newModule.id));
+    setSelectedLesson(null);
+    setEditMode(false);
+    setPreviewMode(false);
 
     setSaveMessage('Модуль успешно создан и добавлен всем пользователям!');
     setTimeout(() => setSaveMessage(''), 3000);
@@ -271,6 +371,8 @@ function AdminContent({ users, setUsers }) {
 
   const handleDeleteModule = (moduleId) => {
     if (window.confirm('Вы уверены, что хотите удалить этот модуль? Все данные, связанные с ним, будут потеряны.')) {
+      const moduleToRemove = moduleList.find(m => m.id === moduleId);
+
       // Удаляем модуль из списка
       setModuleList(moduleList.filter(m => m.id !== moduleId));
 
@@ -286,6 +388,16 @@ function AdminContent({ users, setUsers }) {
 
       setUsers(updatedUsers);
 
+      if (moduleToRemove) {
+        updateLessonVideosState(prev => {
+          const updated = { ...prev };
+          moduleToRemove.lessons.forEach(lesson => {
+            delete updated[lesson];
+          });
+          return updated;
+        });
+      }
+
       setSaveMessage('Модуль успешно удален!');
       setTimeout(() => setSaveMessage(''), 3000);
     }
@@ -293,14 +405,14 @@ function AdminContent({ users, setUsers }) {
 
   const handleDeleteLesson = (lessonName) => {
     if (window.confirm('Вы уверены, что хотите удалить этот урок?')) {
-      const module = moduleList.find(m => m.id === selectedModule);
+      const module = moduleList.find(m => Number(m.id) === Number(selectedModule));
       const updatedModule = {
         ...module,
         lessons: module.lessons.filter(l => l !== lessonName)
       };
 
       const updatedModules = moduleList.map(m =>
-        m.id === selectedModule ? updatedModule : m
+        Number(m.id) === Number(selectedModule) ? updatedModule : m
       );
 
       setModuleList(updatedModules);
@@ -328,6 +440,12 @@ function AdminContent({ users, setUsers }) {
 
       setUsers(updatedUsers);
 
+      updateLessonVideosState(prev => {
+        if (!prev[lessonName]) return prev;
+        const { [lessonName]: removed, ...rest } = prev;
+        return rest;
+      });
+
       setSaveMessage('Урок успешно удален!');
       setTimeout(() => setSaveMessage(''), 3000);
     }
@@ -335,9 +453,10 @@ function AdminContent({ users, setUsers }) {
 
   // Просмотр урока
   if (selectedModule && selectedLesson !== null) {
-    const module = moduleList.find(m => m.id === selectedModule);
+    const module = moduleList.find(m => Number(m.id) === Number(selectedModule));
     const lessonName = module.lessons[selectedLesson];
     const content = localContent[lessonName];
+    const lessonVideoMeta = getLessonVideoData(lessonName);
 
     return (
       <div className="space-y-6">
@@ -478,18 +597,22 @@ function AdminContent({ users, setUsers }) {
                       <iframe
                         className="absolute top-0 left-0 w-full h-full"
                         src={getVideoEmbedUrl(lessonName)}
-                        title={lessonVideos[lessonName]?.title || lessonName}
+                        title={lessonVideoMeta?.title || lessonName}
                         frameBorder="0"
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                         allowFullScreen
                       ></iframe>
                     </div>
-                    {lessonVideos[lessonName] && (
+                    {lessonVideoMeta && (
                       <div className="mt-3 text-sm text-gray-600">
-                        <p className="font-medium">{lessonVideos[lessonName].title}</p>
-                        <p className="text-gray-500">
-                          {lessonVideos[lessonName].channel} • {lessonVideos[lessonName].duration}
-                        </p>
+                        <p className="font-medium">{lessonVideoMeta.title}</p>
+                        {(lessonVideoMeta.channel || lessonVideoMeta.duration) && (
+                          <p className="text-gray-500">
+                            {lessonVideoMeta.channel}
+                            {lessonVideoMeta.channel && lessonVideoMeta.duration ? ' • ' : ''}
+                            {lessonVideoMeta.duration}
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>
@@ -533,7 +656,7 @@ function AdminContent({ users, setUsers }) {
 
   // Просмотр модуля
   if (selectedModule) {
-    const module = moduleList.find(m => m.id === selectedModule);
+    const module = moduleList.find(m => Number(m.id) === Number(selectedModule));
     const IconComponent = getIconComponent(module.icon);
 
     return (
@@ -567,6 +690,7 @@ function AdminContent({ users, setUsers }) {
               <p className="text-gray-600">Управление уроками модуля</p>
             </div>
             <button
+              type="button"
               onClick={() => setShowAddLesson(!showAddLesson)}
               className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
             >
@@ -603,8 +727,62 @@ function AdminContent({ users, setUsers }) {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   />
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Ссылка на видео (YouTube или embed, опционально)
+                  </label>
+                  <input
+                    type="text"
+                    value={newLessonVideoUrl}
+                    onChange={(e) => setNewLessonVideoUrl(e.target.value)}
+                    placeholder="https://www.youtube.com/watch?v=..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Поддерживаются ссылки YouTube (watch или youtu.be) или готовые embed-ссылки других платформ.
+                  </p>
+                </div>
+                <div className="grid sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Заголовок видео
+                    </label>
+                    <input
+                      type="text"
+                      value={newLessonVideoTitle}
+                      onChange={(e) => setNewLessonVideoTitle(e.target.value)}
+                      placeholder="Например: Основы ML"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Канал / источник
+                    </label>
+                    <input
+                      type="text"
+                      value={newLessonVideoChannel}
+                      onChange={(e) => setNewLessonVideoChannel(e.target.value)}
+                      placeholder="YouTube Channel"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Длительность
+                    </label>
+                    <input
+                      type="text"
+                      value={newLessonVideoDuration}
+                      onChange={(e) => setNewLessonVideoDuration(e.target.value)}
+                      placeholder="15:30"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    />
+                  </div>
+                </div>
                 <div className="flex gap-2">
                   <button
+                    type="button"
                     onClick={handleAddLesson}
                     className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors"
                   >
@@ -630,6 +808,7 @@ function AdminContent({ users, setUsers }) {
           <div className="space-y-3">
             {module.lessons.map((lesson, index) => {
               const hasContent = localContent[lesson];
+              const lessonVideoMeta = getLessonVideoData(lesson);
               return (
                 <div
                   key={index}
@@ -658,6 +837,11 @@ function AdminContent({ users, setUsers }) {
                     >
                       {hasContent ? 'Готов' : 'Шаблон'}
                     </span>
+                    {lessonVideoMeta && (
+                      <span className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700">
+                        Видео
+                      </span>
+                    )}
                     <button
                       onClick={() => setSelectedLesson(index)}
                       className="text-blue-600 hover:text-blue-700 p-2 hover:bg-blue-50 rounded-lg transition-colors"
@@ -934,7 +1118,7 @@ function AdminContent({ users, setUsers }) {
             <div
               key={module.id}
               className="bg-white border border-gray-200 rounded-xl p-4 sm:p-6 hover:shadow-lg transition-all cursor-pointer"
-              onClick={() => setSelectedModule(module.id)}
+              onClick={() => setSelectedModule(String(module.id))}
             >
               <div className="flex items-start gap-3 sm:gap-4 mb-3 sm:mb-4">
                 <div className="bg-blue-100 p-2 sm:p-3 rounded-xl flex-shrink-0">

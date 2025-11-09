@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import LandingPage from './components/LandingPage';
 import Login from './components/Login';
 import AdminPanel from './components/AdminPanel';
@@ -7,10 +6,6 @@ import UserDashboard from './components/UserDashboard';
 import { demoUsers } from './data/mockData';
 
 function App() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  
-  // Проверяем localStorage при загрузке
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
     return localStorage.getItem('isLoggedIn') === 'true';
   });
@@ -23,32 +18,23 @@ function App() {
   const [userEmail, setUserEmail] = useState(() => {
     return localStorage.getItem('userEmail') || '';
   });
-  // Загружаем пользователей из localStorage или используем demoUsers
   const [users, setUsers] = useState(() => {
     const savedUsers = localStorage.getItem('adminUsers');
     return savedUsers ? JSON.parse(savedUsers) : [...demoUsers];
   });
+  const [currentView, setCurrentView] = useState(() => (localStorage.getItem('isLoggedIn') === 'true' ? 'app' : 'landing'));
 
-  // Сохраняем пользователей при изменении
   useEffect(() => {
     localStorage.setItem('adminUsers', JSON.stringify(users));
   }, [users]);
 
-  // Редирект после успешного логина
   useEffect(() => {
     if (isLoggedIn) {
-      if (location.pathname === '/login') {
-        if (role === 'admin') {
-          navigate('/admin', { replace: true });
-        } else if (role === 'user') {
-          navigate('/dashboard', { replace: true });
-        }
-      }
+      setCurrentView('app');
     }
-  }, [isLoggedIn, role, location.pathname, navigate]);
+  }, [isLoggedIn]);
 
   const handleLogin = (email, password) => {
-    // Проверка учетной записи администратора
     if (email.toLowerCase() === 'admin@sqb.uz' && password === 'admin123') {
       const name = 'Admin';
       setUserName(name);
@@ -64,7 +50,6 @@ function App() {
       return { success: true };
     }
 
-    // Поиск пользователя в списке users
     const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
 
     if (!user) {
@@ -74,7 +59,6 @@ function App() {
       };
     }
 
-    // Проверка пароля
     if (user.password !== password) {
       return {
         success: false,
@@ -82,7 +66,6 @@ function App() {
       };
     }
 
-    // Успешная авторизация пользователя
     const name = user.name || email.split('@')[0];
     setUserName(name);
     setUserEmail(user.email);
@@ -98,72 +81,49 @@ function App() {
   };
 
   const handleLogout = () => {
-    // Очищаем state
+    const currentUserName = userName;
+
     setIsLoggedIn(false);
     setRole(null);
     setUserName('');
     setUserEmail('');
 
-    // Очищаем localStorage авторизации
     localStorage.removeItem('userName');
     localStorage.removeItem('userEmail');
     localStorage.removeItem('role');
     localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('adminActiveView');
 
-    // Переходим на главную страницу
-    navigate('/');
+    setCurrentView('landing');
   };
 
-  // Защищенный роут для авторизованных пользователей
-  const ProtectedRoute = ({ children, requiredRole = null }) => {
-    if (!isLoggedIn) {
-      return <Navigate to="/login" replace />;
+  if (!isLoggedIn) {
+    if (currentView === 'login') {
+      return <Login onLogin={handleLogin} onBack={() => setCurrentView('landing')} />;
     }
-    if (requiredRole && role !== requiredRole) {
-      return <Navigate to="/" replace />;
-    }
-    return children;
-  };
+
+    return <LandingPage onStart={() => setCurrentView('login')} />;
+  }
+
+  if (role === 'admin') {
+    return (
+      <AdminPanel
+        userName={userName}
+        onLogout={handleLogout}
+        users={users}
+        setUsers={setUsers}
+      />
+    );
+  }
 
   return (
-    <Routes>
-      <Route 
-        path="/" 
-        element={!isLoggedIn ? <LandingPage /> : (role === 'admin' ? <Navigate to="/admin" replace /> : <Navigate to="/dashboard" replace />)} 
-      />
-      <Route 
-        path="/login" 
-        element={!isLoggedIn ? <Login onLogin={handleLogin} /> : (role === 'admin' ? <Navigate to="/admin" replace /> : <Navigate to="/dashboard" replace />)} 
-      />
-      <Route 
-        path="/admin" 
-        element={
-          <ProtectedRoute requiredRole="admin">
-            <AdminPanel
-              userName={userName}
-              onLogout={handleLogout}
-              users={users}
-              setUsers={setUsers}
-            />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/dashboard" 
-        element={
-          <ProtectedRoute requiredRole="user">
-            <UserDashboard
-              userName={userName}
-              userEmail={userEmail}
-              onLogout={handleLogout}
-              users={users}
-              setUsers={setUsers}
-            />
-          </ProtectedRoute>
-        } 
-      />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <UserDashboard
+      userName={userName}
+      userEmail={userEmail}
+      onLogout={handleLogout}
+      users={users}
+      setUsers={setUsers}
+    />
   );
 }
 

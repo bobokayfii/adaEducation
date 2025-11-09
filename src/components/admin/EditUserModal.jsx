@@ -85,7 +85,7 @@ function EditUserModal({ user, onClose, onEditUser }) {
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-6 flex-shrink-0 rounded-t-2xl">
+        <div className="bg-gradient-primary text-white p-6 flex-shrink-0 rounded-t-2xl">
           <div className="flex items-start justify-between mb-2">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-white/20">
@@ -211,8 +211,9 @@ function EditUserModal({ user, onClose, onEditUser }) {
               Отмена
             </button>
             <button
+              type="submit"
               onClick={handleSubmit}
-              className="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium flex items-center justify-center gap-2"
+              className="flex-1 px-4 py-2.5 bg-gradient-primary text-white rounded-lg hover:opacity-90 transition-colors font-medium flex items-center justify-center gap-2"
             >
               <Save className="w-5 h-5" />
               Сохранить

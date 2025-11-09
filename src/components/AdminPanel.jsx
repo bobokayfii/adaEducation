@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import AdminHeader from './admin/AdminHeader';
 import AdminTabs from './admin/AdminTabs';
 import AdminUsers from './admin/AdminUsers';
@@ -7,7 +7,13 @@ import AdminAIQuestions from './admin/AdminAIQuestions';
 import AdminStats from './admin/AdminStats';
 
 function AdminPanel({ userName, onLogout, users, setUsers }) {
-  const [activeView, setActiveView] = useState('adminUsers');
+  const [activeView, setActiveView] = useState(() => {
+    return localStorage.getItem('adminActiveView') || 'adminUsers';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('adminActiveView', activeView);
+  }, [activeView]);
 
   return (
     <div className="min-h-screen bg-dark-bg">
@@ -18,7 +24,13 @@ function AdminPanel({ userName, onLogout, users, setUsers }) {
         {activeView === 'adminUsers' && (
           <AdminUsers users={users} setUsers={setUsers} />
         )}
-        {activeView === 'adminContent' && <AdminContent users={users} setUsers={setUsers} />}
+        {activeView === 'adminContent' && (
+          <AdminContent
+            users={users}
+            setUsers={setUsers}
+            setActiveView={setActiveView}
+          />
+        )}
         {activeView === 'adminAIQuestions' && <AdminAIQuestions />}
         {activeView === 'adminStats' && <AdminStats users={users} />}
       </main>

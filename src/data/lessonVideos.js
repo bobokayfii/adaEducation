@@ -169,16 +169,116 @@ export const lessonVideos = {
   }
 };
 
-// Функция для получения URL видео
-export const getVideoUrl = (lessonName) => {
-  const video = lessonVideos[lessonName];
-  if (!video) return null;
-  return `https://www.youtube.com/watch?v=${video.videoId}`;
+// ключ для пользовательских видео
+const CUSTOM_VIDEOS_KEY = 'adminLessonVideos';
+
+const getCustomVideos = () => {
+  if (typeof window === 'undefined') return {};
+  try {
+    const saved = window.localStorage.getItem(CUSTOM_VIDEOS_KEY);
+    return saved ? JSON.parse(saved) : {};
+  } catch (error) {
+    console.error('Ошибка чтения adminLessonVideos из localStorage', error);
+    return {};
+  }
+};
+
+export const getLessonVideoData = (lessonName) => {
+  const custom = getCustomVideos();
+  if (custom[lessonName]) {
+    return custom[lessonName];
+  }
+
+  return lessonVideos[lessonName] || null;
+};
+
+export const getAllLessonVideos = () => {
+  return {
+    ...lessonVideos,
+    ...(typeof window === 'undefined' ? {} : getCustomVideos()),
+  };
+};
+
+export const saveLessonVideoData = (lessonName, videoData) => {
+  if (typeof window === 'undefined') return;
+
+  const custom = getCustomVideos();
+
+  if (videoData) {
+    custom[lessonName] = videoData;
+  } else {
+    delete custom[lessonName];
+  }
+
+  try {
+    window.localStorage.setItem(CUSTOM_VIDEOS_KEY, JSON.stringify(custom));
+  } catch (error) {
+    console.error('Ошибка сохранения adminLessonVideos в localStorage', error);
+  }
+};
+
+const buildEmbedFromUrl = (url) => {
+  try {
+    const parsed = new URL(url);
+
+    // youtube.com/watch?v=
+    if (parsed.hostname.includes('youtube.com')) {
+      const videoId =
+        parsed.searchParams.get('v') ||
+        parsed.pathname.split('/').filter(Boolean).pop();
+      return videoId ? `https://www.youtube.com/embed/${videoId}` : url;
+    }
+
+    // youtu.be/<id>
+    if (parsed.hostname === 'youtu.be') {
+      const videoId = parsed.pathname.replace('/', '');
+      return videoId ? `https://www.youtube.com/embed/${videoId}` : url;
+    }
+
+    // если это уже embed-ссылка или другой провайдер, возвращаем как есть
+    return url;
+  } catch (error) {
+    console.error('Не удалось разобрать ссылку на видео', error);
+    return url;
+  }
 };
 
 // Функция для получения embed URL
 export const getVideoEmbedUrl = (lessonName) => {
-  const video = lessonVideos[lessonName];
+  const video = getLessonVideoData(lessonName);
   if (!video) return null;
-  return `https://www.youtube.com/embed/${video.videoId}`;
+
+  if (video.embedUrl) {
+    return video.embedUrl;
+  }
+
+  if (video.videoId) {
+    return `https://www.youtube.com/embed/${video.videoId}`;
+  }
+
+  if (video.url) {
+    return buildEmbedFromUrl(video.url);
+  }
+
+  return null;
+};
+
+// Функция для получения URL видео (оригинальная ссылка)
+export const getVideoUrl = (lessonName) => {
+  const video = getLessonVideoData(lessonName);
+  if (!video) return null;
+
+  if (video.url) {
+    return video.url;
+  }
+
+  if (video.videoId) {
+    return `https://www.youtube.com/watch?v=${video.videoId}`;
+  }
+
+  if (video.embedUrl) {
+    return video.embedUrl;
+  }
+
+  return null;
 };

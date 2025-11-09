@@ -100,7 +100,7 @@ function AddUserModal({ onClose, onAddUser, modules = [] }) {
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-6 flex-shrink-0 rounded-t-2xl">
+        <div className="bg-gradient-primary text-white p-6 flex-shrink-0 rounded-t-2xl">
           <div className="flex items-start justify-between mb-2">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-white/20">
@@ -226,7 +226,7 @@ function AddUserModal({ onClose, onAddUser, modules = [] }) {
             </button>
             <button
               onClick={handleSubmit}
-              className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center justify-center gap-2"
+              className="flex-1 px-4 py-2.5 bg-gradient-primary text-white rounded-lg hover:opacity-90 transition-colors font-medium flex items-center justify-center gap-2"
             >
               <UserPlus className="w-5 h-5" />
               Создать
