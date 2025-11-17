@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { ChevronLeft, ChevronRight, CheckCircle, Play, Award } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { ChevronLeft, ChevronRight, CheckCircle, Play, Award, Sparkles, Send, Loader2, User } from 'lucide-react';
 import { lessonContent } from '../../data/lessonContent';
 import { getLessonVideoData, getVideoEmbedUrl } from '../../data/lessonVideos';
+import { io } from 'socket.io-client';
 
 function LessonViewer({
   modulesData,
@@ -39,11 +40,191 @@ function LessonViewer({
 Нажмите кнопку ниже, чтобы завершить урок.`,
     };
 
+  // Состояние для AI запросов (чат)
+  const [aiQuestion, setAiQuestion] = useState('');
+  const [chatMessages, setChatMessages] = useState([]);
+  const [isLoadingAi, setIsLoadingAi] = useState(false);
+  const chatEndRef = useRef(null);
+  const socketRef = useRef(null);
+  const isReceivingResponseRef = useRef(false); // Ref для отслеживания получения ответа
+  const responseTimeoutRef = useRef(null); // Ref для таймаута завершения ответа
+
+  // Socket.IO connection setup
+  useEffect(() => {
+    // Connect to Socket.IO server using /chat namespace
+    // URL: https://fb828cd874cc.ngrok-free.app/chat
+    // Listener: response
+    // Event: sendMessage
+    const socket = io('https://fb828cd874cc.ngrok-free.app/chat', {
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      forceNew: true,
+      // Add extra headers for ngrok
+      extraHeaders: {
+        'ngrok-skip-browser-warning': 'true'
+      }
+    });
+
+    socketRef.current = socket;
+
+    // Handle successful connection
+    socket.on('connect', () => {
+      console.log('Socket.IO connected to /chat namespace:', socket.id);
+    });
+
+    // Listen for 'response' event - accumulate parts into one message
+    socket.on('response', (data) => {
+      const responseText = typeof data === 'string' ? data : data.message || data.text || JSON.stringify(data);
+      
+      // Очищаем предыдущий таймаут
+      if (responseTimeoutRef.current) {
+        clearTimeout(responseTimeoutRef.current);
+      }
+      
+      setChatMessages((prev) => {
+        // Проверяем, есть ли уже незавершенное сообщение AI (которое мы начали получать)
+        const lastMessage = prev[prev.length - 1];
+        
+        if (lastMessage && lastMessage.type === 'ai' && isReceivingResponseRef.current) {
+          // Обновляем существующее сообщение, добавляя новую часть
+          const updatedMessages = [...prev];
+          updatedMessages[updatedMessages.length - 1] = {
+            ...lastMessage,
+            text: lastMessage.text + responseText,
+          };
+          return updatedMessages;
+        } else {
+          // Создаем новое сообщение AI
+          isReceivingResponseRef.current = true;
+          return [
+            ...prev,
+            {
+              type: 'ai',
+              text: responseText,
+            },
+          ];
+        }
+      });
+      
+      // Устанавливаем таймаут: если в течение 1.5 секунд не придет новая часть, завершаем загрузку
+      responseTimeoutRef.current = setTimeout(() => {
+        isReceivingResponseRef.current = false;
+        setIsLoadingAi(false);
+        responseTimeoutRef.current = null;
+      }, 1500);
+    });
+    
+    // Слушаем событие завершения ответа (если сервер отправляет такое)
+    socket.on('response_end', () => {
+      if (responseTimeoutRef.current) {
+        clearTimeout(responseTimeoutRef.current);
+        responseTimeoutRef.current = null;
+      }
+      isReceivingResponseRef.current = false;
+      setIsLoadingAi(false);
+    });
+
+    // Handle connection errors
+    socket.on('connect_error', (error) => {
+      console.error('Socket connection error:', error);
+      if (responseTimeoutRef.current) {
+        clearTimeout(responseTimeoutRef.current);
+        responseTimeoutRef.current = null;
+      }
+      const errorMessage = {
+        type: 'ai',
+        text: 'Ошибка подключения к серверу. Пожалуйста, попробуйте снова.',
+      };
+      setChatMessages((prev) => [...prev, errorMessage]);
+      setIsLoadingAi(false);
+      isReceivingResponseRef.current = false;
+    });
+
+    // Handle disconnection
+    socket.on('disconnect', () => {
+      console.log('Socket disconnected');
+      if (responseTimeoutRef.current) {
+        clearTimeout(responseTimeoutRef.current);
+        responseTimeoutRef.current = null;
+      }
+      isReceivingResponseRef.current = false;
+      setIsLoadingAi(false);
+    });
+
+    // Cleanup on unmount
+    return () => {
+      if (responseTimeoutRef.current) {
+        clearTimeout(responseTimeoutRef.current);
+        responseTimeoutRef.current = null;
+      }
+      socket.disconnect();
+    };
+  }, []);
+
+  // Автопрокрутка к последнему сообщению
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages, isLoadingAi]);
+
   const handleNextClick = () => {
     // Отмечаем урок как просмотренный
     onCompleteLesson();
     // Переходим к следующему уроку
     onNextLesson();
+  };
+
+  const handleAiSubmit = () => {
+    if (!aiQuestion.trim() || isLoadingAi || !socketRef.current) return;
+
+    // Сохраняем вопрос перед очисткой поля
+    const questionToSend = aiQuestion.trim();
+    
+    // Добавляем вопрос пользователя в чат
+    const userMessage = {
+      type: 'user',
+      text: questionToSend,
+    };
+    setChatMessages((prev) => [...prev, userMessage]);
+    
+    // Очищаем поле ввода сразу после отправки
+    setAiQuestion('');
+    setIsLoadingAi(true);
+    isReceivingResponseRef.current = false; // Сбрасываем флаг перед новым запросом
+    
+    // Очищаем предыдущий таймаут если есть
+    if (responseTimeoutRef.current) {
+      clearTimeout(responseTimeoutRef.current);
+      responseTimeoutRef.current = null;
+    }
+
+    // Формируем контекстный запрос с информацией об уроке
+    const contextualQuestion = `Тема урока: "${content.title}" (${module.title}). 
+Контент урока: ${content.content.substring(0, 500)}...
+
+Вопрос пользователя: ${questionToSend}`;
+
+    // Emit 'sendMessage' event to Socket.IO server
+    // Send message as string (like in the Socket.IO client tool)
+    try {
+      socketRef.current.emit('sendMessage', contextualQuestion);
+    } catch (error) {
+      console.error('Error sending message:', error);
+      const errorMessage = {
+        type: 'ai',
+        text: 'Извините, произошла ошибка при отправке сообщения. Пожалуйста, попробуйте снова.',
+      };
+      setChatMessages((prev) => [...prev, errorMessage]);
+      setIsLoadingAi(false);
+    }
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleAiSubmit();
+    }
   };
 
   return (
@@ -123,6 +304,119 @@ function LessonViewer({
                   </div>
                 </div>
               )}
+
+              {/* AI помощник по темам урока */}
+              <div className="mb-4 sm:mb-6 lg:mb-8">
+                <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl border border-purple-200/50 shadow-default overflow-hidden">
+                  <div className="p-4 sm:p-6">
+                    <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                      <div className="p-2 bg-gradient-primary rounded-lg">
+                        <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="text-base sm:text-lg font-semibold text-gray-900">
+                          Задайте вопрос по теме урока
+                        </h3>
+                        <p className="text-xs sm:text-sm text-gray-600">
+                          Получите помощь от AI по материалам этого урока
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* История чата */}
+                    {chatMessages.length > 0 && (
+                      <div className="mb-3 sm:mb-4 max-h-96 overflow-y-auto bg-white rounded-lg border border-gray-200 p-3 sm:p-4 space-y-3 sm:space-y-4">
+                        {chatMessages.map((message, index) => (
+                          <div
+                            key={index}
+                            className={`flex gap-3 ${
+                              message.type === 'user' ? 'justify-end' : 'justify-start'
+                            }`}
+                          >
+                            {message.type === 'ai' && (
+                              <div className="p-1.5 bg-purple-100 rounded-lg flex-shrink-0 self-start">
+                                <Sparkles className="w-4 h-4 text-purple-600" />
+                              </div>
+                            )}
+                            <div
+                              className={`max-w-[85%] sm:max-w-[75%] rounded-lg p-3 sm:p-4 ${
+                                message.type === 'user'
+                                  ? 'bg-gradient-primary text-white'
+                                  : 'bg-gray-50 text-gray-800 border border-gray-200'
+                              }`}
+                            >
+                              {message.type === 'user' && (
+                                <div className="flex items-center gap-2 mb-1">
+                                  <User className="w-3 h-3 sm:w-4 sm:h-4" />
+                                  <p className="text-xs font-medium opacity-90">Вы</p>
+                                </div>
+                              )}
+                              {message.type === 'ai' && (
+                                <p className="text-xs sm:text-sm font-medium text-gray-600 mb-1.5">
+                                  AI помощник
+                                </p>
+                              )}
+                              <p
+                                className={`text-sm sm:text-base leading-relaxed whitespace-pre-line ${
+                                  message.type === 'user' ? 'text-white' : 'text-gray-800'
+                                }`}
+                              >
+                                {message.text}
+                              </p>
+                            </div>
+                            {message.type === 'user' && (
+                              <div className="p-1.5 bg-primary/20 rounded-lg flex-shrink-0 self-start">
+                                <User className="w-4 h-4 text-primary" />
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                        {isLoadingAi && (
+                          <div className="flex items-center gap-3 justify-start">
+                            <div className="p-1.5 bg-purple-100 rounded-lg flex-shrink-0">
+                              <Sparkles className="w-4 h-4 text-purple-600" />
+                            </div>
+                            <div className="bg-gray-50 rounded-lg p-3 sm:p-4 border border-gray-200">
+                              <div className="flex items-center gap-2">
+                                <Loader2 className="w-4 h-4 text-primary animate-spin" />
+                                <p className="text-sm text-gray-600">AI обрабатывает ваш вопрос...</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        <div ref={chatEndRef} />
+                      </div>
+                    )}
+
+                    {/* Поле ввода вопроса */}
+                    <div className="mb-0">
+                      <div className="relative flex gap-2">
+                        <textarea
+                          value={aiQuestion}
+                          onChange={(e) => setAiQuestion(e.target.value)}
+                          onKeyPress={handleKeyPress}
+                          placeholder="Например: Объясни подробнее эту тему..."
+                          className="w-full px-4 py-3 pr-12 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none bg-white text-gray-900 placeholder-gray-500"
+                          rows="3"
+                          disabled={isLoadingAi}
+                        />
+                        <button
+                          onClick={handleAiSubmit}
+                          disabled={!aiQuestion.trim() || isLoadingAi}
+                          className="absolute right-2 bottom-2 p-2 bg-gradient-primary text-white rounded-lg hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md transform hover:scale-105 active:scale-95"
+                          title="Отправить вопрос"
+                        >
+                          {isLoadingAi ? (
+                            <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
+                          ) : (
+                            <Send className="w-4 h-4 sm:w-5 sm:h-5" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
               {/* Кнопка зависит от того, последний урок или нет */}
               {isLastLesson ? (

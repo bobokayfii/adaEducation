@@ -272,6 +272,8 @@ function AIChatBot({ onAgentCreated, onClose, autoOpen = true }) {
 
   return (
     <>
+      {false && (
+      <>
       {/* Floating Button */}
       {!isOpen && (
         <button
@@ -736,6 +738,8 @@ function AIChatBot({ onAgentCreated, onClose, autoOpen = true }) {
           box-shadow: 0 0 30px rgba(102, 126, 234, 0.6), 0 0 60px rgba(118, 75, 162, 0.4);
         }
       `}</style>
+      </>
+      )}
     </>
   );
 }
