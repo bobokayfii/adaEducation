@@ -3,7 +3,7 @@ import { Download, Search, Eye, UserPlus, Edit, Trash2 } from 'lucide-react';
 import UserDetail from './UserDetail';
 import AddUserModal from './AddUserModal';
 import EditUserModal from './EditUserModal';
-import { modulesData } from '../../data/mockData';
+import { modulesData, demoUsers } from '../../data/mockData';
 import { getOverallProgress, minutesToHM, exportUsersToCSV } from '../../utils/helpers';
 
 function AdminUsers({ users, setUsers }) {
@@ -42,10 +42,18 @@ function AdminUsers({ users, setUsers }) {
   };
 
   const handleDeleteUser = (userId) => {
+    const user = users.find(u => u.id === userId);
+    
+    // Проверяем, является ли пользователь постоянным (из demoUsers)
+    const defaultUser = demoUsers[0];
+    if (user && user.email === defaultUser.email) {
+      alert('Этот пользователь является системным и не может быть удален.');
+      return;
+    }
+    
     if (window.confirm('Вы уверены, что хотите удалить этого пользователя? Все данные будут потеряны.')) {
       setUsers(users.filter(u => u.id !== userId));
       // Удаляем данные пользователя из localStorage
-      const user = users.find(u => u.id === userId);
       if (user) {
         localStorage.removeItem(`user_${user.name}`);
         localStorage.removeItem(`showAIChat_${user.name}`);
@@ -136,16 +144,18 @@ function AdminUsers({ users, setUsers }) {
                     >
                       <Eye className="w-5 h-5" />
                     </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteUser(u.id);
-                      }}
-                      className="p-2 text-danger hover:text-danger/80 hover:bg-danger/10 rounded-lg transition-all"
-                      title="Удалить"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
+                    {u.email !== demoUsers[0]?.email && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteUser(u.id);
+                        }}
+                        className="p-2 text-danger hover:text-danger/80 hover:bg-danger/10 rounded-lg transition-all"
+                        title="Удалить"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -262,18 +272,22 @@ function AdminUsers({ users, setUsers }) {
                           <Eye className="w-4 h-4" />
                           Подробнее
                         </button>
-                        <span className="text-gray-300">|</span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteUser(u.id);
-                          }}
-                          className="text-danger hover:text-danger/80 font-medium text-sm flex items-center gap-1 transition-colors"
-                          title="Удалить"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          Удалить
-                        </button>
+                        {u.email !== demoUsers[0]?.email && (
+                          <>
+                            <span className="text-gray-300">|</span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteUser(u.id);
+                              }}
+                              className="text-danger hover:text-danger/80 font-medium text-sm flex items-center gap-1 transition-colors"
+                              title="Удалить"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              Удалить
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>

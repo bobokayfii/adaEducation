@@ -6,4 +6,16 @@ export const modulesData = [
   { id: 5, icon: 'file-text', title: 'OCR и AI', lessons: ['Что такое OCR','No-code OCR','Сервисы','Продвинутое','Применение','Практика'] }
 ];
 
-export const demoUsers = [];
+export const demoUsers = [
+  {
+    id: 1,
+    name: 'Тестовый Пользователь',
+    email: 'user@test.com',
+    password: 'user123',
+    progress: {},
+    testResults: [],
+    timeSpent: 0,
+    lastActivity: new Date().toISOString().split('T')[0],
+    department: 'Тестирование'
+  }
+];

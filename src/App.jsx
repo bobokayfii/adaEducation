@@ -20,12 +20,32 @@ function App() {
   });
   const [users, setUsers] = useState(() => {
     const savedUsers = localStorage.getItem('adminUsers');
-    return savedUsers ? JSON.parse(savedUsers) : [...demoUsers];
+    const parsedUsers = savedUsers ? JSON.parse(savedUsers) : [...demoUsers];
+    
+    // Гарантируем наличие постоянного пользователя
+    const defaultUser = demoUsers[0]; // Тестовый пользователь
+    const userExists = parsedUsers.some(u => u.email === defaultUser.email);
+    
+    if (!userExists) {
+      return [...parsedUsers, defaultUser];
+    }
+    
+    return parsedUsers;
   });
   const [currentView, setCurrentView] = useState(() => (localStorage.getItem('isLoggedIn') === 'true' ? 'app' : 'landing'));
 
   useEffect(() => {
-    localStorage.setItem('adminUsers', JSON.stringify(users));
+    // Гарантируем наличие постоянного пользователя перед сохранением
+    const defaultUser = demoUsers[0];
+    const userExists = users.some(u => u.email === defaultUser.email);
+    
+    let usersToSave = users;
+    if (!userExists) {
+      usersToSave = [...users, defaultUser];
+      setUsers(usersToSave);
+    }
+    
+    localStorage.setItem('adminUsers', JSON.stringify(usersToSave));
   }, [users]);
 
   useEffect(() => {
