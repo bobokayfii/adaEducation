@@ -52,19 +52,24 @@ function LessonViewer({
   // Socket.IO connection setup
   useEffect(() => {
     // Connect to Socket.IO server using /chat namespace
-    // URL: https://fb828cd874cc.ngrok-free.app/chat
+    // URL: https://c9a52c0951cb.ngrok-free.app/chat
     // Listener: response
     // Event: sendMessage
-    const socket = io('https://fb828cd874cc.ngrok-free.app/chat', {
-      transports: ['websocket', 'polling'],
+    const socket = io('https://c9a52c0951cb.ngrok-free.app/chat', {
+      transports: ['websocket', 'polling'], // Пробуем сначала websocket, потом polling
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
       forceNew: true,
-      // Add extra headers for ngrok
-      extraHeaders: {
-        'ngrok-skip-browser-warning': 'true'
-      }
+      // Дополнительные опции для стабильного подключения через ngrok
+      upgrade: true,
+      rememberUpgrade: false,
+      timeout: 20000,
+      withCredentials: false,
+      // Убираем extraHeaders, так как они вызывают CORS ошибки
+      // Для ngrok можно использовать query параметры вместо заголовков
+      query: {}
     });
 
     socketRef.current = socket;

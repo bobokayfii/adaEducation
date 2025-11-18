@@ -136,29 +136,45 @@ function UserDashboard({ userName, userEmail, onLogout, users, setUsers }) {
 
   const handleStartModule = (moduleId, restart = false) => {
     const moduleProgress = currentUser.progress[moduleId];
+    
+    // Находим модуль для получения количества уроков
+    const module = modulesData.find(m => m.id === moduleId);
+    const totalLessons = module ? module.lessons.length : 0;
 
     // Если restart или не начат - начинаем с первого урока
     // Если продолжаем - начинаем с урока, равного completed (следующий урок после пройденных тестов)
-    const startLesson = restart || !moduleProgress.started ? 0 : moduleProgress.completed;
+    const startLesson = restart || !moduleProgress || !moduleProgress.started 
+      ? 0 
+      : (moduleProgress.completed || 0);
 
     setSelectedModule(moduleId);
     setSelectedLesson(startLesson);
     setCurrentView('lesson');
 
     // Обновим прогресс - начали модуль
-    setCurrentUser(prev => ({
-      ...prev,
-      progress: {
-        ...prev.progress,
-        [moduleId]: {
-          ...prev.progress[moduleId],
-          started: true,
-          // Если restart - сбрасываем прогресс
-          viewed: restart ? 0 : prev.progress[moduleId].viewed,
-          completed: restart ? 0 : prev.progress[moduleId].completed
+    setCurrentUser(prev => {
+      const existingProgress = prev.progress[moduleId] || {
+        started: false,
+        viewed: 0,
+        completed: 0,
+        total: totalLessons
+      };
+      
+      return {
+        ...prev,
+        progress: {
+          ...prev.progress,
+          [moduleId]: {
+            ...existingProgress,
+            started: true,
+            total: totalLessons,
+            // Если restart - сбрасываем прогресс
+            viewed: restart ? 0 : existingProgress.viewed,
+            completed: restart ? 0 : existingProgress.completed
+          }
         }
-      }
-    }));
+      };
+    });
   };
 
   const handleCompleteLesson = () => {
